@@ -55,7 +55,7 @@ print ("------------------------ 1. Removing extraneous columns ----------------
 print(ais_data.info())
 
 ### Remove unneeded columns
-columns_to_remove = ["VesselName", "IMO", "CallSign", "Status", "Length", "Width", "Draft", "Cargo"]
+columns_to_remove = ["VesselName", "IMO", "CallSign", "Status", "Length", "Width", "Draft", "Cargo", "VesselType"]
 ais_data.drop(columns_to_remove, inplace=True, axis=1)
 
 print ("------------------------ After extra column removal ----------------------------")
@@ -128,7 +128,7 @@ ais_data.SOG /= SPEED_MAX 	# normal speed
 ais_data.Heading /= 360.0
 
 print ("------------------------------- Writing final to .csv --------------------------------")
-ais_data.to_csv(save_path + "trimmed_M5_Z15.csv", index=False)
+ais_data.to_csv(save_path + "trimmed_M5_Z15_extratrim.csv", index=False)
 
 #def __init__():
 #	trim()
