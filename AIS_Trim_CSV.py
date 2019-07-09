@@ -24,7 +24,7 @@ geod = Geod(ellps='WGS84')
 dataset_path = "/Volumes/PATRIOT/AIS Project/Marine Cadastre Datasets/CSVs/" 
 save_path = "/Users/samyakovlev/Desktop/"
 
-csv_to_trim = "AIS_2017_05_Zone15.csv"
+csvs_provided = ["AIS_2017_05_Zone15.csv", "AIS_2017_05_Zone16.csv"]
 
 # save_file = "pickled_mc_dataset.pkl" #we don't care about pickles yet
 
@@ -45,8 +45,13 @@ EPOCH = datetime(1970, 1, 1)
 
 #def trim(csv_to_trim = "AIS_2017_05_Zone15.csv"):
 
-print("--------- Reading in: " + dataset_path + csv_to_trim)
-ais_data = pd.read_csv(dataset_path + csv_to_trim)
+csv_list=[]
+
+for csv_to_trim in csvs_provided:
+	print("--------- Reading in: " + dataset_path + csv_to_trim)
+	csv_list.append(pd.read_csv(dataset_path + csv_to_trim))
+
+ais_data = pd.concat(csv_list, ignore_index=True)
 vessels_passenger = pd.DataFrame()	# for auxillary dataset for only passenger vessels
 vessels_cargo = pd.DataFrame()		# for auxillary dataset for only cargo/freight vessels
 vessels_tanker = pd.DataFrame()
