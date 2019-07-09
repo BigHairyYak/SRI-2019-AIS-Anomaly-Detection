@@ -6,6 +6,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# import extra stuff for class parsing and the like
+import AIS_Path_Utils as utils
+
 from math import radians, cos, sin, asin, sqrt
 import sys
 import os
@@ -52,25 +55,29 @@ for csv_to_trim in csvs_provided:
 	csv_list.append(pd.read_csv(dataset_path + csv_to_trim))
 
 ais_data = pd.concat(csv_list, ignore_index=True)
-vessels_passenger = pd.DataFrame()	# for auxillary dataset for only passenger vessels
-vessels_cargo = pd.DataFrame()		# for auxillary dataset for only cargo/freight vessels
-vessels_tanker = pd.DataFrame()
+vessels_fishing = pd.DataFrame()	# fishing vessels subset for training/plotting elsewhere
+vessels_passenger = pd.DataFrame()	# passenger vessels
+vessels_cargo = pd.DataFrame()		# cargo vessels
+vessels_tanker = pd.DataFrame()		# tanker vessels
+vessels_pleasure = pd.DataFrame()	# pleasure craft
+vessels_speed = pd.DataFrame()		# speedcraft, likely will not be used
+vessels_tug = pd.DataFrame()		# tugboats
 
 print ("------------------------ 1. Removing extraneous columns ------------------------")
 print(ais_data.info())
 
 ### Remove unneeded columns
-columns_to_remove = ["VesselName", "IMO", "CallSign", "Status", "Length", "Width", "Draft", "Cargo", "VesselType"]
+columns_to_remove = ["VesselName", "IMO", "CallSign", "Status", "Length", "Width", "Draft", "Cargo"] #, "VesselType"]
 ais_data.drop(columns_to_remove, inplace=True, axis=1)
 
 print ("------------------------ After extra column removal ----------------------------")
 print(ais_data.info())
 
 ### Get rid of items not within time range
-print ("----------------------- 2.0 Converting Timestamps to Seconds ------------------")
+print ("----------------------- 2.0 Converting Timestamps to Seconds -------------------")
 ais_data["BaseDateTime"] = ais_data["BaseDateTime"].apply(lambda x: ((datetime.strptime(x, "%Y-%m-%dT%H:%M:%S")) - EPOCH).total_seconds())
-t_min = time.mktime(time.strptime("31/05/2017 23:59:59", "%d/%m/%Y %H:%M:%S"))
-t_max = time.mktime(time.strptime("31/08/2017 23:59:59", "%d/%m/%Y %H:%M:%S"))
+# t_min = time.mktime(time.strptime("31/05/2017 23:59:59", "%d/%m/%Y %H:%M:%S"))
+# t_max = time.mktime(time.strptime("31/08/2017 23:59:59", "%d/%m/%Y %H:%M:%S"))
 # I don't think this is necessary what with all the time format conversions going on
 # something something time here
 
@@ -132,7 +139,7 @@ ais_data.SOG /= SPEED_MAX 	# normal speed
 
 ais_data.Heading /= 360.0
 
-print ("------------------------------- Writing final to .csv --------------------------------")
+print ("---------------------------- Writing final to .csv -----------------------------")
 ais_data.to_csv(save_path + "trimmed_M5_Z15_extratrim.csv", index=False)
 
 #def __init__():
