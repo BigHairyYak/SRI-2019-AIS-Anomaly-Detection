@@ -37,9 +37,10 @@ LAT_MIN = 27.5
 LAT_MAX = 30.5
 LON_MIN = -90.5
 LON_MAX = -87.5
+LAT_MIN, LAT_MAX, LON_MIN, LON_MAX = utils.get_boundaries("New Orleans")
 
 # Maximum speed, in knots
-SPEED_MAX = 30.0
+SPEED_MAX = utils.SPEED_MAX
 
 # Base time, for use in converting human-readable timestamps to seconds
 EPOCH = datetime(1970, 1, 1)
@@ -74,6 +75,8 @@ print ("------------------------ After extra column removal --------------------
 print(ais_data.info())
 
 ### Get rid of items not within time range
+#	This is one of the longest parts of the process
+#	Whoever finds this, please find a faster way
 print ("----------------------- 2.0 Converting Timestamps to Seconds -------------------")
 ais_data["BaseDateTime"] = ais_data["BaseDateTime"].apply(lambda x: ((datetime.strptime(x, "%Y-%m-%dT%H:%M:%S")) - EPOCH).total_seconds())
 # t_min = time.mktime(time.strptime("31/05/2017 23:59:59", "%d/%m/%Y %H:%M:%S"))
@@ -131,13 +134,16 @@ ais_data = ais_data[ais_data.Heading != 511.0]
 #print ("----------------------- 3.5 Removing long (>4hr) paths ------------------------")
 # Something here to look for max timestamp and min timestamp, subtract and see if it needs deleting
 
-print ("----------------------- 4 Normalizing data for training ------------------------")
+print ("----------------------- 4. Normalizing data for training ------------------------")
+### Normalize all data between 0 and 1
+#	This makes training go a little easier
 ais_data.LAT = (ais_data.LAT - LAT_MIN)/(LAT_MAX-LAT_MIN) # normal LAT as defined by coordinates
 ais_data.LON = (ais_data.LON - LON_MIN)/(LON_MAX-LON_MIN) # normal LON as defined by cooridnates
-ais_data.COG /= 360.0 		# normal COG between -1 and 1
+ais_data.COG /= 360.0 												# get COG between -1 and 1
+ais_data.COG = ais_data.COG.apply(lambda x: x+1 if x < 0 else x) 	# add 1 to all negative COGs to make them coterminal with the original 
 ais_data.SOG /= SPEED_MAX 	# normal speed
-
 ais_data.Heading /= 360.0
+ais_data.Heading = ais_data.Heading.apply(lambda x: x+1 if x <0 else x) # repeat as above
 
 print ("---------------------------- Writing final to .csv -----------------------------")
 ais_data.to_csv(save_path + "trimmed_M5_Z15_extratrim.csv", index=False)
