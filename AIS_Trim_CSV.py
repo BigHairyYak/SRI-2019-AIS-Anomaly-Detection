@@ -13,9 +13,7 @@ from math import radians, cos, sin, asin, sqrt
 import sys
 import os
 sys.path.append("..")
-import utils
-import pickle
-import copy
+#import utils
 from datetime import datetime
 import time
 from io import StringIO
@@ -56,13 +54,13 @@ for csv_to_trim in csvs_provided:
 	csv_list.append(pd.read_csv(dataset_path + csv_to_trim))
 
 ais_data = pd.concat(csv_list, ignore_index=True)
-vessels_fishing = pd.DataFrame()	# fishing vessels subset for training/plotting elsewhere
-vessels_passenger = pd.DataFrame()	# passenger vessels
-vessels_cargo = pd.DataFrame()		# cargo vessels
-vessels_tanker = pd.DataFrame()		# tanker vessels
-vessels_pleasure = pd.DataFrame()	# pleasure craft
-vessels_speed = pd.DataFrame()		# speedcraft, likely will not be used
-vessels_tug = pd.DataFrame()		# tugboats
+#vessels_fishing		= ais_data[ais_data.VesselType.isin(utils.fishing)]	# fishing vessels subset for training/plotting elsewhere
+#vessels_passenger 	= ais_data[ais_data.VesselType.isin(utils.passenger)]	# passenger vessels
+#vessels_cargo 		= ais_data[ais_data.VesselType.isin(utils.cargo)]		# cargo vessels
+#vessels_tanker 		= ais_data[ais_data.VesselType.isin(utils.tanker)]		# tanker vessels
+#vessels_pleasure 	= ais_data[ais_data.VesselType.isin(utils.pleasurecraft)]	# pleasure craft
+#vessels_speed 		= ais_data[ais_data.VesselType.isin(utils.speedy)]		# speedcraft, likely will not be used
+#vessels_tug 		= ais_data[ais_data.VesselType.isin(utils.tug)]			# tugboats
 
 print ("------------------------ 1. Removing extraneous columns ------------------------")
 print(ais_data.info())
@@ -78,13 +76,10 @@ print(ais_data.info())
 #	This is one of the longest parts of the process
 #	Whoever finds this, please find a faster way
 print ("----------------------- 2.0 Converting Timestamps to Seconds -------------------")
-ais_data["BaseDateTime"] = ais_data["BaseDateTime"].apply(lambda x: ((datetime.strptime(x, "%Y-%m-%dT%H:%M:%S")) - EPOCH).total_seconds())
-# t_min = time.mktime(time.strptime("31/05/2017 23:59:59", "%d/%m/%Y %H:%M:%S"))
-# t_max = time.mktime(time.strptime("31/08/2017 23:59:59", "%d/%m/%Y %H:%M:%S"))
-# I don't think this is necessary what with all the time format conversions going on
-# something something time here
-
-
+#ais_data["BaseDateTime"] = ais_data["BaseDateTime"].apply(lambda x: ((datetime.strptime(x, "%Y-%m-%dT%H:%M:%S")) - EPOCH).total_seconds())
+# The following method takes apparently 1/8th the time of datetime.strptime, which is HUGE
+# ais_data["BaseDateTime"] = ais_data["BaseDateTime"].apply(lambda x: ((datetime(int(x[0:4]), int(x[5:7]), int(x[8:10]), int(x[11:13]), int(x[14:16]), int(x[17:19]))) - EPOCH).total_seconds())
+ais_data["BaseDateTime"] = ais_data["BaseDateTime"].apply(lambda x: (datetime(int(x[:4]), int(x[5:7]), int(x[8:10]), int(x[11:13]), int(x[14:16]), int(x[17:19])) - EPOCH).total_seconds())
 ### Removing immediately unusable items, as defined by given coordinates
 print ("----------------------- 2.1 Removing out-of-bounds items -----------------------")
 ais_data = ais_data[ais_data.LAT >= LAT_MIN]
@@ -99,7 +94,7 @@ ais_data = ais_data[ais_data.SOG < SPEED_MAX]
 print ("--------------------------- After out-of-bounds removal ------------------------")
 print(ais_data.info())
 
-print ("----------------------- 3.1 Sorting by MMSI Values -----------------------------")
+print ("----------------------- 3.1 Sorting by MMSI Values -----------------------------")  
 ais_data = ais_data.sort_values(by='MMSI')
 
 ### Sort of checkpoint
@@ -131,9 +126,6 @@ ais_data = ais_data[ais_data.Heading != 511.0]
 # This is done in AIS_RNN_Yakovlev.py, upon loading of pre-processed .csv
 # Every MMSI group is pulled out as its own DataFrame, which in turn is sorted
 
-#print ("----------------------- 3.5 Removing long (>4hr) paths ------------------------")
-# Something here to look for max timestamp and min timestamp, subtract and see if it needs deleting
-
 print ("----------------------- 4. Normalizing data for training ------------------------")
 ### Normalize all data between 0 and 1
 #	This makes training go a little easier
@@ -145,8 +137,31 @@ ais_data.SOG /= SPEED_MAX 	# normal speed
 ais_data.Heading /= 360.0
 ais_data.Heading = ais_data.Heading.apply(lambda x: x+1 if x <0 else x) # repeat as above
 
-print ("---------------------------- Writing final to .csv -----------------------------")
-ais_data.to_csv(save_path + "trimmed_M5_Z15_extratrim.csv", index=False)
+#print ("----------------------- 4.1 Cutting discontinuous paths -----------------------")
+#paths = {}
+#mmsi_groups = ais_data.groupby(ais_data.index) #"MMSI") # Split into all the MMSIs, remove MMSI column, sort by time, and reset index
+#for MMSI in mmsi_groups.groups:
+#	paths[MMSI] = ais_data[ais_data.index == MMSI].sort_values(by="BaseDateTime").reset_index(drop=True) #.drop(["MMSI"], axis=1).sort_values(by="BaseDateTime").reset_index(drop=True)
 
+#utils.cut_discontinuous_tracks(paths, 2)
+
+print ("--------------------- 5. Generating vessel class subframes ----------------------")
+vessels_fishing		= ais_data[ais_data.VesselType.isin(utils.fishing)]		# fishing vessels 
+vessels_passenger 	= ais_data[ais_data.VesselType.isin(utils.passenger)]	# passenger vessels
+vessels_cargo 		= ais_data[ais_data.VesselType.isin(utils.cargo)]		# cargo vessels
+vessels_tanker 		= ais_data[ais_data.VesselType.isin(utils.tanker)]		# tanker vessels
+vessels_pleasure 	= ais_data[ais_data.VesselType.isin(utils.pleasurecraft)]	# pleasure craft
+vessels_speed 		= ais_data[ais_data.VesselType.isin(utils.speedy)]		# speedcraft, likely will not be used
+vessels_tug 		= ais_data[ais_data.VesselType.isin(utils.tug)]			# tugboats
+
+print ("---------------------------- Writing final to .csv -----------------------------")
+ais_data.to_csv(save_path + "trimmed_M5_Z15_ULTRAtrim.csv", index=False)
+vessels_fishing.to_csv(save_path + "trimmed_fishing.csv", index=False)
+vessels_passenger.to_csv(save_path + "trimmed_passenger.csv", index=False)
+vessels_cargo.to_csv(save_path + "trimmed_cargo.csv", index=False)
+vessels_tanker.to_csv(save_path + "trimmed_tanker.csv", index=False)
+vessels_pleasure.to_csv(save_path + "trimmed_pleasurecraft.csv", index=False)
+vessels_speed.to_csv(save_path + "trimmed_speedcraft.csv", index=False)
+vessels_tug.to_csv(save_path + "trimmed_tug.csv", index=False)
 #def __init__():
 #	trim()
