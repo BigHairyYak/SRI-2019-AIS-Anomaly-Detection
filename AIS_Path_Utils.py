@@ -37,7 +37,8 @@ def get_boundaries(region="New Orleans"):
 	global current_region # allows us to modify current_region
 	current_region = region
 	global LAT_MIN, LAT_MAX, LON_MIN, LON_MAX
-	bounds = regions[current_region]
+	global bounds
+	bounds = regions[current_region]	# Update local bounds
 	LAT_MIN = bounds[0]
 	LAT_MAX = bounds[1]
 	LON_MIN = bounds[2]
@@ -78,9 +79,12 @@ def resolve_vessel_type(vessel_code):
 ### Plot vessel courses over a map, to help visualize
 #	First establish boundaries to plot between
 #	Then show image, then plot the requested number of vessels
-def plot_over_map(paths = {}, num_vessels = 20, show_map=True, sort_by_type=False):
+def plot_over_map(paths = {}, num_vessels = 20, show_map=True, label_MMSI=False, sort_by_type=False, save_image=False):
+	plt.title("Vessels in the " + current_region + " area")
 	plt.ylim(top=bounds[1], bottom=bounds[0])
 	plt.xlim(left=bounds[2], right=bounds[3])
+	plt.xlabel("Longitude")
+	plt.ylabel("Latitude")
 	if show_map:
 		im = plt.imread(current_region + ".png")
 		plt.imshow(im, extent=[bounds[2],bounds[3], bounds[0], bounds[1]])
@@ -89,38 +93,42 @@ def plot_over_map(paths = {}, num_vessels = 20, show_map=True, sort_by_type=Fals
 	for i in range(num_vessels):
 		path = next(path_iterator)
 		if sort_by_type:
-			print(str(paths[path].VesselType[0]) + ": " + resolve_vessel_type(paths[path].VesselType[0]))
+			#print(str(paths[path].VesselType[0]) + ": " + resolve_vessel_type(paths[path].VesselType[0]))
 			if resolve_vessel_type(paths[path].VesselType[0]) == "Fishing":
 				path_color = "b"
 			elif resolve_vessel_type(paths[path].VesselType[0]) == "Cargo":
-				path_color = "r"
+				path_color = "#FF0033" #"r"
 			elif resolve_vessel_type(paths[path].VesselType[0]) == "Tanker":
-				path_color = "m"
+				path_color = "#cb4335" #"m"
 			elif resolve_vessel_type(paths[path].VesselType[0]) == "Tug":
-				path_color = "b"
+				path_color = "#993333" #"b"
 			elif resolve_vessel_type(paths[path].VesselType[0]) == "Pleasure":
-				path_color = "g"
+				path_color = "#9933CC" #"g"
 			elif resolve_vessel_type(paths[path].VesselType[0]) == "Passenger":
 				path_color = "c"
 			#elif resolve_vessel_type(paths[path].VesselType[0]) == "Unknown":
 			else:
-				path_color = "y"
-			plt.plot(paths[path].LON * (LON_MAX-LON_MIN) + LON_MIN, paths[path].LAT * (LAT_MAX-LAT_MIN) + LAT_MIN, label=path, color = path_color, lw=0.5)
+				path_color = "#336666" #matplotlib.colors.BASE_COLORS[] #"y"
+			plt.plot(paths[path].LON * (LON_MAX-LON_MIN) + LON_MIN, paths[path].LAT * (LAT_MAX-LAT_MIN) + LAT_MIN, label=path, color = path_color, lw=0.6)
 		else:
-			plt.plot(paths[path].LON * (LON_MAX-LON_MIN) + LON_MIN, paths[path].LAT * (LAT_MAX-LAT_MIN) + LAT_MIN, label=path, color = path_color, lw=0.5)
-		plt.text(paths[path].LON.iloc[-1] * (LON_MAX-LON_MIN) + LON_MIN, paths[path].LAT.iloc[-1] * (LAT_MAX-LAT_MIN) + LAT_MIN, path)
-
+			plt.plot(paths[path].LON * (LON_MAX-LON_MIN) + LON_MIN, paths[path].LAT * (LAT_MAX-LAT_MIN) + LAT_MIN, label=path, lw=0.6, color = path_color)
+		if (label_MMSI):
+			plt.text(paths[path].LON.iloc[-1] * (LON_MAX-LON_MIN) + LON_MIN, paths[path].LAT.iloc[-1] * (LAT_MAX-LAT_MIN) + LAT_MIN, path)
+	if save_image:
+		plt.savefig("Vessels_general_"+current_region+".png", bbox_inches="tight", dpi=200)
 	plt.show()
 
 ### Plot over a map, all vessels of a type
 #	Provide paths, the number of vessels to look through, and the type
 #	This will look THROUGH that number of vessels, not FOR that number of vessels
 #	Lazy for now, but this is more to see the change in appearance when we look at specific types within a larger set
-def plot_over_map_by_type(paths = {}, num_vessels=20, type = "Cargo", show_map=True, label_MMSI=True, save_image=False):
-	plt.title("Plotting " + type + " Vessels")
+def plot_over_map_by_type(paths = {}, num_vessels=20, type = "Cargo", show_map=True, label_MMSI=False, save_image=False):
+	plt.title("Plotting " + type + " Vessels in " + current_region)
 	if show_map:
 		im = plt.imread(current_region + ".png")
 		plt.imshow(im, extent=[bounds[2],bounds[3], bounds[0], bounds[1]])
+	plt.xlabel("Longitude")
+	plt.ylabel("Latitude")
 	path_iterator = iter(paths)
 	for i in range(num_vessels):
 		path = next(path_iterator)
@@ -166,11 +174,11 @@ def plot_vessel_tracks(paths):
 #	Formula for 'distance' taken from http://jan.ucc.nau.edu/~cvm/latlon_formula.html
 def distance_over_earth(lat1, lon1, lat2, lon2):
 	# Start by denormalizing coordinates, and converting them to radians for calculation
-	#lat1 = (lat1 * (LAT_MAX-LAT_MIN) + LAT_MIN) * math.pi / 180.0
-	#lat2 = (lat2 * (LAT_MAX-LAT_MIN) + LAT_MIN) * math.pi / 180.0
-	#lon1 = (lon1 * (LON_MAX-LON_MIN) + LON_MIN) * math.pi / 180.0
-	#lon2 = (lon2 * (LON_MAX-LON_MIN) + LON_MIN) * math.pi / 180.0
-
+	lat1 = (lat1 * (LAT_MAX-LAT_MIN) + LAT_MIN) * math.pi / 180.0
+	lat2 = (lat2 * (LAT_MAX-LAT_MIN) + LAT_MIN) * math.pi / 180.0
+	lon1 = (lon1 * (LON_MAX-LON_MIN) + LON_MIN) * math.pi / 180.0
+	lon2 = (lon2 * (LON_MAX-LON_MIN) + LON_MIN) * math.pi / 180.0
+	'''
 	rho1 = R_EARTH * math.cos(lat1)
 	z1 = R_EARTH * math.sin(lat1)
 	x1 = rho1 * math.cos(lon1)
@@ -191,7 +199,10 @@ def distance_over_earth(lat1, lon1, lat2, lon2):
 	lon2 = math.radians(abs(lon2 * (LON_MAX-LON_MIN) + LON_MIN))# * math.pi / 180.0
 	#print("Calculating (" + str(lat1) + ", " + str(lon1) + ") to (" + str(lat2) + ", " + str(lon2) +")")
 	x = math.cos(lat1)*math.cos(lon1)*math.cos(lat2)*math.cos(lon2) + math.cos(lat1)*math.sin(lon1)*math.cos(lat2)*math.sin(lon2) + math.sin(lat1)*math.sin(lat2) # * R_EARTH
-	distance = math.atan2(math.sqrt(1 - x*x), x)
+	#distance = math.atan2(math.sqrt(1 - x*x), x)
+	'''
+	distance = haversine((lat1, lon1), (lat2, lon2), unit=Unit.NAUTICAL_MILES)
+
 	# Distance in nautical miles
 	return distance #R_EARTH * cos_theta
 
@@ -202,9 +213,7 @@ def distance_over_earth(lat1, lon1, lat2, lon2):
 #	Dataframes used for this AIS project have the structure [BaseDateTime, LAT, LON, SOG, COG, Heading, VesselType]
 def plot_stop_go(paths):
 	# this was originally based on some geod-related math and matrix manipulation
-	# in the interest of time and compatibility with DataFrames, I am ignoring this for now
-	#print("Call made to unfinished method remove_unusual_tracks")
-	#print("length of input path: " + str(len(path)))
+	# Now done using haversine formula, which supposedly works
 	path_iterator = iter(paths)
 	for i in range(100):
 		next_path = next(path_iterator)
@@ -307,11 +316,14 @@ def plot_stop_go_with_time(paths, start_index):
 ### Cut discontinuous tracks into smaller tracks
 #	If the time between two tracks is greater than a given interval, split the path into two resultant paths
 #	This is useful when a ship leaves the map, or simply hops around because that's not what ships do
-def cut_discontinuous_tracks(paths, num_hours):
+def cut_discontinuous_tracks(paths, num_hours=2, visualize_cuts=False):
 	# this is intended to separate voyages that leave the area of observation
 	print("Call made to unfinished method cut_discontinuous_tracks")
 	resultant_paths = {}
 	paths_to_pop = []
+
+	if visualize_cuts == True:
+		fig = plt.figure()
 	INTERVAL_MAX = num_hours * 3600 # this converts the time to number of seconds, ugly but whatever
 	for path in paths:
 		path_num = path
@@ -322,38 +334,77 @@ def cut_discontinuous_tracks(paths, num_hours):
 			continue
 		#print("MMSI: " + str(path) + " Path duration: " + str(duration))
 
-		# Get the timesteps between individual entries
-		intervals = times.values[1:] - times.values[:-1]
-		#print(intervals)
+		if (visualize_cuts):
+			ax = fig.add_subplot(1, 2, 1)
+			im = plt.imread(current_region + ".png")
+			ax.imshow(im, extent=[bounds[2],bounds[3], bounds[0], bounds[1]])
+			ax.plot((paths[path].LON * (LON_MAX-LON_MIN) + LON_MIN), (paths[path].LAT * (LAT_MAX-LAT_MIN) + LAT_MIN), label=path)
+			ax.legend()
 
 		# Get the indeces (-1) where an interval of more than num_hours hours has passed
+		intervals = times.values[1:] - times.values[:-1]
 		overlong_intervals = np.where(intervals > INTERVAL_MAX)[0]
-		#print(overlong_intervals)
-		
-		overlong_intervals = [0] + overlong_intervals
+		overlong_intervals = np.insert(overlong_intervals, 0, 0) # Account for starting point not being included
+		overlong_intervals = np.insert(overlong_intervals, len(overlong_intervals), len(paths[path])-1)
+
+		# TODO: Add something to account for the final point in a path and not drop off the end
+		#		If there are no splits, show the original path in the post-split figure
+		#		Figure out why complete paths are deleted
+
+		print("Intervals: " + str(overlong_intervals))
 
 		for i in range(1, len(overlong_intervals)):
 			# update MMSI for new path names, new array IDs for sub-paths resulting from splitting
-			path_num += 0.1
-			time_diff = times.values[overlong_intervals[i]+1] - times.values[overlong_intervals[i]]
-			#print("Interval of " + str(time_diff/3600) + " hours found - splitting!")
-			'''
-			resultant_paths.update({path+.1 : paths[path][:i+1]})
-			resultant_paths.update({path+.2 : paths[path][i+1:]})
-			'''
-			# What we WANT ################################################
-			resultant_paths.update({path_num : paths[path][overlong_intervals[i-1]+1:overlong_intervals[i]+1]})
-			###############################################################
+			path_num = round(path_num+0.1, 3)
+			#time_diff = times.values[overlong_intervals[i]+1] - times.values[overlong_intervals[i]-1]
+			time_diff = times.values[overlong_intervals[i]] - times.values[overlong_intervals[i]-1]
+			print("Interval of ~" + str(int(time_diff/3600)) + " hours found in MMSI: " + str(path) + " - splitting!")
+			resultant_paths.update({path_num : paths[path][overlong_intervals[i-1]+1 : overlong_intervals[i]]})
+
+		# Add on the last part of the initial path, which is not accounted for in overlong_intervals
+		# If (total length of path) - (the last point in the intervals) is long enough to be considered, add it on
+		if overlong_intervals.size > 0:
+			if len(paths[path]) - overlong_intervals[len(overlong_intervals)-1] > 20:
+				path_num = round(path_num+0.1, 3)
+				# Add on everything after the last splitpoint
+				resultant_paths.update({path_num : paths[path][overlong_intervals[len(overlong_intervals)-1] : ]}) 
+
 		#	If overlong_intervals contains more than just the 0 point, start destroying thngs
 		if (overlong_intervals.size > 1):
 			paths_to_pop.append(path)
-	for victim in paths_to_pop:
-		paths.pop(victim)
-	paths.update(resultant_paths)
-	#return resultant_paths
 
-'''
-time = paths[636090893].BaseDaTeTime
-'''
+		# Remove paths that are too short, no sense in keeping them
+		rpaths_to_pop = []
+		for check_short in resultant_paths:
+			if len(resultant_paths[check_short]) < 20:
+				rpaths_to_pop.append(check_short)
 
+		print("Number of sub-paths: " + str(len(resultant_paths)) + "\nShort paths to remove: " + str(len(rpaths_to_pop)) + "\nTotal paths: " + str(len(resultant_paths)-len(rpaths_to_pop)))
+
+		for pop in rpaths_to_pop:
+			resultant_paths.pop(pop)
+
+		print("Total paths (actual): " + str(len(resultant_paths)))
+
+	if (visualize_cuts):
+		ax = fig.add_subplot(1, 2, 2)
+		im = plt.imread(current_region + ".png")
+		ax.imshow(im, extent=[bounds[2],bounds[3], bounds[0], bounds[1]])
+		for rpath in resultant_paths:
+			ax.plot((resultant_paths[rpath].LON * (LON_MAX-LON_MIN) + LON_MIN), (resultant_paths[rpath].LAT * (LAT_MAX-LAT_MIN) + LAT_MIN), label=rpath)
+		ax.legend()
+		plt.show()
+	else:
+		for victim in paths_to_pop:
+			paths.pop(victim)
+		#for new_path in resultant_paths:
+		paths.update(resultant_paths)
+		#return resultant_paths
+'''
+iterator = iter(paths)
+for i in range(40):
+	q = next(iterator)
+	paths_to_check = {q : paths[q]}
+	utils.cut_discontinuous_tracks(paths_to_check, 2, True)
+'''
 
