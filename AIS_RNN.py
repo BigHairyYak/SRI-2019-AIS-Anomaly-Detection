@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-%matplotlib inline
+#%matplotlib inline     #uncomment for Jupyter Notebook Plotting
 import math
 from haversine import haversine, Unit
 from tensorflow.keras.models import load_model
