@@ -2,13 +2,15 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-%matplotlib inline
 import math
 from haversine import haversine, Unit
 from tensorflow.keras.models import load_model
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense, LSTM
+from argparse import ArgumentParser
+
+import AIS_Path_Utils as utils
 
 #New York 
 LAT_MIN = 40.4
@@ -17,14 +19,14 @@ LON_MIN = -74.3
 LON_MAX = -73.5
 
 #--------------------------------------------------------------
-###Collects data from given csv and assigns training and test data
+### Collects data from given csv and assigns training and test data
 def split_data(data):
     
     mmsi_groups = data.groupby(data.index)     #groups data into individual tracks
     
     count = 0
     
-    ##loop through each track
+    ### loop through each track
     for MMSI in mmsi_groups.groups:
     
         print(len(mmsi_groups.groups))
@@ -32,17 +34,18 @@ def split_data(data):
         count+=1
         
         path = data[data.index == MMSI].sort_values(by="BaseDateTime").reset_index(drop=True) 
+        #utils.cut_discontinuous_tracks([path], 2) need to rework either this or utils to allow for singular paths
     
-        input_feature = path.iloc[:,[1,2,3,4]].values     #input variables (LAT,LON,SOG,COG)
+        input_feature = path.iloc[:,[1,2,3,4,5]].values     #input variables (LAT,LON,SOG,COG,Heading)
         input_data = input_feature
     
-        ##plot path
-        plt.plot(input_feature[:,1], input_feature[:,0])
-        plt.xlabel("Longitude")
-        plt.ylabel("Latitude")
-        plt.show() 
+        ### plot path
+        #plt.plot(input_feature[:,1], input_feature[:,0])
+        #plt.xlabel("Longitude")
+        #plt.ylabel("Latitude")
+        #plt.show() 
     
-        ##choose input and output train data
+        ### choose input and output train data
         lookback = 30     #the number of past data points used for prediction
         X=[]               #Train inputs
         Y=[]               #Train outputs
@@ -53,18 +56,18 @@ def split_data(data):
             X.append(t)
             Y.append(input_data[i+ lookback, :])
         
-        ##reshape into proper format (samples, time step, #features)    
+        ### reshape into proper format (samples, time step, #features)    
         X, Y= np.array(X), np.array(Y)
-        X = X.reshape(X.shape[0],lookback,4)
-        Y = Y.reshape(Y.shape[0],4)
+        X = X.reshape(X.shape[0],lookback,5)
+        Y = Y.reshape(Y.shape[0],5)
     
         print(X.shape)
         print(Y.shape)
     
-        if(count < 10):    #choose number of training vessels
+        if(count < 50):    #choose number of training vessels
             trainX.append(X)
             trainY.append(Y)
-        elif(count < 20):  #choose number of test vessels
+        elif(count < 100):  #choose number of test vessels
             testX.append(X)
             testY.append(Y)
         else:
@@ -72,7 +75,7 @@ def split_data(data):
             
     return trainX,trainY,testX,testY
 #-----------------------------------------------------------------------------------------
-###Trains the model given inputs and outputs
+### Train the model given inputs and outputs
 def train(model,trainX,trainY):
     print("preparing to train")   
     
@@ -82,14 +85,14 @@ def train(model,trainX,trainY):
         outputs = trainY[i]
     
         try:
-            model.fit(inputs, outputs, epochs=10, batch_size=inputs.shape[0])
+            model.fit(inputs, outputs, epochs=50, batch_size=inputs.shape[0])
         except:
             print("untrainable: moving on")
             continue
             
     return model
 #--------------------------------------------------------------------------------------------
-###Makes and compares predictions based on test data 
+### Make and compare predictions based on test data 
 def predict(model,testX,testY):
     
     predictions = []
@@ -104,7 +107,7 @@ def predict(model,testX,testY):
     return predictions
      
 #------------------------------------------------------------------------------------------
-###Helper for plot predictions. Plots a single prediction and actual path 
+### Helper for plot predictions. Plots a single prediction and actual path 
 def plot_predictions_help(prediction, actual):
     
     predicted_norm_LON = []
@@ -157,8 +160,8 @@ def plot_predictions_help(prediction, actual):
     plt.xlabel("Longitude")
     plt.ylabel("Latitude")
     plt.legend()
-    #plt.savefig("/Users/Eamon/Desktop/realtimepics/" + str(i) + ".png", bbox_inches = "tight", dpi = 200)
-    plt.show()
+    plt.savefig("/Users/samyakovlev/Desktop/RNN_Results/" + args.type + str(i) + ".png", bbox_inches = "tight", dpi = 200)
+    #plt.show()
     
     if(anom_count > len(prediction) / 3):
         paths.append([[actual_norm_LON + actual_anom_LON, actual_norm_LAT + actual_anom_LAT], True])
@@ -166,7 +169,7 @@ def plot_predictions_help(prediction, actual):
         paths.append([[actual_norm_LON + actual_anom_LON, actual_norm_LAT + actual_anom_LAT], False])      
 
 #------------------------------------------------------------------------------------------------------------
-#Plots individual graphs of predictions and corresponding actual path. Calls helper method to plot one at a time
+#   Plots individual graphs of predictions and corresponding actual path. Calls helper method to plot one at a time
 def plot_predictions(predictions, actuals):
     for i in range(len(predictions)):
         plot_predictions_help(predictions[i], actuals[i])
@@ -194,10 +197,19 @@ def plot_over_map(paths):
     plt.show()
 #--------------------------------------------------------------------------------------------
 
-###MAIN
+### MAIN
+#   Include command line arguments for training on different files
+parser = ArgumentParser()
+parser.add_argument('type', type=str, help="Vessel type to be used for training/testing\nFiles must be named \'trimmed_[VESSEL TYPE].csv\'")
 
-##import data
-data = pd.read_csv("/Users/Eamon/Desktop/MSC/Data/NYhistoricaldata/JuneJuly2017data/trimmed_pleasurecraft.csv", header=0, index_col=0) 
+#   Add file location to make inputting filenames simpler
+#   IF YOU ARE USING COMMAND LINE ARGS, CHANGE THIS
+dataset_path = "/Users/samyakovlev/Desktop/SRI-2019-AIS-Anomaly-Detection/"
+args = parser.parse_args()
+
+#   Import data
+#data = pd.read_csv("/Volumes/PATRIOT/AIS Project/Marine Cadastre Datasets/CSVs/trimmed_tanker.csv", header=0, index_col=0) 
+data = pd.read_csv(dataset_path + "trimmed_" + args.type + ".csv", header=0, index_col=0)
 
 trainX = []
 trainY = []
@@ -208,16 +220,16 @@ trainX,trainY,testX,testY = split_data(data)   #collect data
 
 ##build model
 model = Sequential()
-model.add(LSTM(units=100, return_sequences= True, input_shape=(None,4)))
+model.add(LSTM(units=100, return_sequences= True, input_shape=(None,5)))
 #model.add(LSTM(units=30, return_sequences=True))
 model.add(LSTM(units=100))
-model.add(Dense(units=4))
+model.add(Dense(units=5 ))
 model.compile(optimizer='adam', loss='mean_squared_error', metrics = ['accuracy'])
 
 
 trained_model = train(model,trainX,trainY)   #train model
 
-#model.save('/Users/Eamon/Desktop/pleasurecraft_model.h5')   #save model
+model.save("/Users/samyakovlev/Desktop/"+args.type+"_model.h5")   #save model per vessel type
 
 all_predictions = predict(model,testX,testY)#make predictions
 

@@ -132,10 +132,10 @@ print ("----------------------- 4. Normalizing data for training ---------------
 ais_data.LAT = (ais_data.LAT - LAT_MIN)/(LAT_MAX-LAT_MIN) # normal LAT as defined by coordinates
 ais_data.LON = (ais_data.LON - LON_MIN)/(LON_MAX-LON_MIN) # normal LON as defined by cooridnates
 ais_data.COG /= 360.0 												# get COG between -1 and 1
-ais_data.COG = ais_data.COG.apply(lambda x: x+1 if x < 0 else x) 	# add 1 to all negative COGs to make them coterminal with the original 
+ais_data.COG = ais_data.COG.apply(lambda x: x+1 if x<0 else x) 	# add 1 to all negative COGs to make them coterminal with the original 
 ais_data.SOG /= SPEED_MAX 	# normal speed
 ais_data.Heading /= 360.0
-ais_data.Heading = ais_data.Heading.apply(lambda x: x+1 if x <0 else x) # repeat as above
+ais_data.Heading = ais_data.Heading.apply(lambda x: x+1 if x<0 else x) # repeat as above
 
 #print ("----------------------- 4.1 Cutting discontinuous paths -----------------------")
 #paths = {}
