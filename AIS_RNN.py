@@ -1,7 +1,8 @@
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-#%matplotlib inline     #uncomment for Jupyter Notebook Plotting
+%matplotlib inline
 import math
 from haversine import haversine, Unit
 from tensorflow.keras.models import load_model
@@ -36,9 +37,9 @@ def split_data(data):
         input_data = input_feature
     
         ##plot path
-        plt.plot(input_feature[:,0], input_feature[:,1])
-        plt.xlabel("Latitude")
-        plt.ylabel("Longitude")
+        plt.plot(input_feature[:,1], input_feature[:,0])
+        plt.xlabel("Longitude")
+        plt.ylabel("Latitude")
         plt.show() 
     
         ##choose input and output train data
@@ -60,10 +61,10 @@ def split_data(data):
         print(X.shape)
         print(Y.shape)
     
-        if(count < 20):    #choose number of training vessels
+        if(count < 10):    #choose number of training vessels
             trainX.append(X)
             trainY.append(Y)
-        elif(count < 40):  #choose number of test vessels
+        elif(count < 20):  #choose number of test vessels
             testX.append(X)
             testY.append(Y)
         else:
@@ -156,10 +157,10 @@ def plot_predictions_help(prediction, actual):
     plt.xlabel("Longitude")
     plt.ylabel("Latitude")
     plt.legend()
-    plt.savefig("/Users/Eamon/Desktop/realtimepics/" + str(i) + ".png", bbox_inches = "tight", dpi = 200)
+    #plt.savefig("/Users/Eamon/Desktop/realtimepics/" + str(i) + ".png", bbox_inches = "tight", dpi = 200)
     plt.show()
     
-    if(anom_count > len(predictions) / 3):
+    if(anom_count > len(prediction) / 3):
         paths.append([[actual_norm_LON + actual_anom_LON, actual_norm_LAT + actual_anom_LAT], True])
     else:
         paths.append([[actual_norm_LON + actual_anom_LON, actual_norm_LAT + actual_anom_LAT], False])      
@@ -170,11 +171,33 @@ def plot_predictions(predictions, actuals):
     for i in range(len(predictions)):
         plot_predictions_help(predictions[i], actuals[i])
 #----------------------------------------------------------------------------------------------------------
+def plot_over_map(paths):
     
+    plt.ylim(top=LAT_MAX, bottom=LAT_MIN)
+    plt.xlim(left=LON_MIN, right=LON_MAX)
+    
+    im = plt.imread("/Users/Eamon/Desktop/MSC/SRI-2019-AIS-Anomaly-Detection/New York.png") #plot map of port as background
+    plt.imshow(im, extent=[LON_MIN, LON_MAX, LAT_MIN, LAT_MAX])
+    
+    for x in paths:
+        path = x[0]
+        anom_status = x[1]
+            
+        if(anom_status == True):
+            plt.plot(path[0],path[1], lw = 0.6, color = 'red')
+        else:
+            plt.plot(path[0],path[1], lw = 0.6, color = 'green')
+    
+    plt.xlabel("Longitude")
+    plt.ylabel("Latitude")
+    plt.savefig("/Users/Eamon/Desktop/realtimepics/map.png", bbox_inches = "tight", dpi = 200)
+    plt.show()
+#--------------------------------------------------------------------------------------------
+
 ###MAIN
 
 ##import data
-data = pd.read_csv("your_csv_file.csv", header=0, index_col=0) 
+data = pd.read_csv("/Users/Eamon/Desktop/MSC/Data/NYhistoricaldata/JuneJuly2017data/trimmed_pleasurecraft.csv", header=0, index_col=0) 
 
 trainX = []
 trainY = []
@@ -192,11 +215,10 @@ model.add(Dense(units=4))
 model.compile(optimizer='adam', loss='mean_squared_error', metrics = ['accuracy'])
 
 
-
 trained_model = train(model,trainX,trainY)   #train model
 
-all_predictions = predict(model,testX,testY)     #make predictions
+#model.save('/Users/Eamon/Desktop/pleasurecraft_model.h5')   #save model
+
+all_predictions = predict(model,testX,testY)#make predictions
 
 plot_predictions(all_predictions, testY)  #plot predictions
-
-model.save('save_path/model_name.h5')
