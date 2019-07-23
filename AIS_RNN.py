@@ -24,6 +24,8 @@ def split_data(data):
     
     mmsi_groups = data.groupby(data.index)     #groups data into individual tracks
     
+    vTypes=[0, 0, 0, 0, 0, 0, 0]
+
     count = 0
     
     ### loop through each track
@@ -38,7 +40,22 @@ def split_data(data):
     
         input_feature = path.iloc[:,[1,2,3,4,5]].values     #input variables (LAT,LON,SOG,COG,Heading)
         input_data = input_feature
-    
+        
+        vType = utils.resolve_vessel_type(path.iloc[0, 6]) # get vesseltype
+        if vType == "Fishing":
+            vTypes[0] += 1
+        elif vType == "Cargo":
+            vTypes[1] += 1
+        elif vType == "Tanker":
+            vTypes[2] += 1
+        elif vType == "Pleasurecraft":
+            vTypes[3] += 1
+        elif vType == "High-speed":
+            vTypes[4] += 1
+        elif vType == "Passenger":
+            vTypes[5] += 1
+        else:
+            vTypes[6] += 1
         ### plot path
         #plt.plot(input_feature[:,1], input_feature[:,0])
         #plt.xlabel("Longitude")
@@ -64,19 +81,25 @@ def split_data(data):
         print(X.shape)
         print(Y.shape)
     
-        if(count < 50):    #choose number of training vessels
+        if(count < int(len(data)/2)):    #choose number of training vessels
             trainX.append(X)
             trainY.append(Y)
-        elif(count < 100):  #choose number of test vessels
+        elif(count < len(data)):  #choose number of test vessels
             testX.append(X)
             testY.append(Y)
         else:
             break
-            
+    print("Fishing vessels: " + str(vTypes[0]))
+    print("Cargo vessels: " + str(vTypes[1]))
+    print("Tanker vessels: " + str(vTypes[2]))
+    print("Pleasure vessels: " + str(vTypes[3]))
+    print("High-speed vessels: " + str(vTypes[4]))
+    print("Passenger vessels: " + str(vTypes[5]))
+    print("Other: " + str(vTypes[6]))  
     return trainX,trainY,testX,testY
 #-----------------------------------------------------------------------------------------
 ### Train the model given inputs and outputs
-def train(model,trainX,trainY):
+def train(model,trainX,trainY, num_epochs):
     print("preparing to train")   
     
     for i in range(len(trainX)):
@@ -85,7 +108,7 @@ def train(model,trainX,trainY):
         outputs = trainY[i]
     
         try:
-            model.fit(inputs, outputs, epochs=50, batch_size=inputs.shape[0])
+            model.fit(inputs, outputs, epochs=num_epochs, batch_size=inputs.shape[0])
         except:
             print("untrainable: moving on")
             continue
@@ -152,19 +175,20 @@ def plot_predictions_help(prediction, actual):
             predicted_norm_LON.append(pred_lon)
             predicted_norm_LAT.append(pred_lat)
         
-    fig = plt.figure()   
-    fig.scatter(predicted_norm_LON,predicted_norm_LAT, marker = 'x', s = 10, color = 'blue', label = 'Predicted Position')
-    fig.scatter(predicted_anom_LON,predicted_anom_LAT, marker = 'x', s = 10, color = 'red', label = 'Predicted Anomaly')
-    fig.scatter(actual_norm_LON,actual_norm_LAT, marker = 'o', s = 10, color = 'green',label =  "Actual Position")
-    fig.scatter(actual_anom_LON,actual_anom_LAT, marker = 'o', s = 10, color = 'red', label =  "Anomalous Position")
+    #plt.figure()   
+    plt.scatter(predicted_norm_LON,predicted_norm_LAT, marker = 'x', s = 10, color = 'blue', label = 'Predicted Position')
+    plt.scatter(predicted_anom_LON,predicted_anom_LAT, marker = 'x', s = 10, color = 'red', label = 'Predicted Anomaly')
+    plt.scatter(actual_norm_LON,actual_norm_LAT, marker = 'o', s = 10, color = 'green',label =  "Actual Position")
+    plt.scatter(actual_anom_LON,actual_anom_LAT, marker = 'o', s = 10, color = 'red', label =  "Anomalous Position")
 
-    fig.xlabel("Longitude")
-    fig.ylabel("Latitude")
-    fig.legend()
+    plt.xlabel("Longitude")
+    plt.ylabel("Latitude")
+    plt.legend()
 
     #print("Saving figure")
 
-    fig.savefig("/Users/samyakovlev/Desktop/RNN_Results/" + args.type + str(i) + ".png", bbox_inches = "tight", dpi = 200)
+    plt.savefig("/Users/samyakovlev/Desktop/RNN_Results/" + args.type + str(i) + ".png", bbox_inches = "tight", dpi = 200)
+    plt.clf()   # Clear figure, for next figure
     #plt.show()
     
     if(anom_count > len(prediction) / 3):
@@ -231,7 +255,7 @@ if args.action.lower() == "train":
     model.add(Dense(units=5 ))
     model.compile(optimizer='adam', loss='mean_squared_error', metrics = ['accuracy'])
 
-    trained_model = train(model,trainX,trainY)   #train model
+    trained_model = train(model,trainX,trainY, 20)   #train model
 
     model.save("/Users/samyakovlev/Desktop/"+args.type+"_model.h5")   #save model per vessel type
 
