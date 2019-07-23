@@ -151,15 +151,18 @@ def plot_predictions_help(prediction, actual):
             actual_norm_LAT.append(actual_lat)
             predicted_norm_LON.append(pred_lon)
             predicted_norm_LAT.append(pred_lat)
-            
+           
     plt.scatter(predicted_norm_LON,predicted_norm_LAT, marker = 'x', s = 10, color = 'blue', label = 'Predicted Position')
     plt.scatter(predicted_anom_LON,predicted_anom_LAT, marker = 'x', s = 10, color = 'red', label = 'Predicted Anomaly')
     plt.scatter(actual_norm_LON,actual_norm_LAT, marker = 'o', s = 10, color = 'green',label =  "Actual Position")
     plt.scatter(actual_anom_LON,actual_anom_LAT, marker = 'o', s = 10, color = 'red', label =  "Anomalous Position")
-    
+
     plt.xlabel("Longitude")
     plt.ylabel("Latitude")
     plt.legend()
+
+    #print("Saving figure")
+
     plt.savefig("/Users/samyakovlev/Desktop/RNN_Results/" + args.type + str(i) + ".png", bbox_inches = "tight", dpi = 200)
     #plt.show()
     
@@ -179,7 +182,8 @@ def plot_over_map(paths):
     plt.ylim(top=LAT_MAX, bottom=LAT_MIN)
     plt.xlim(left=LON_MIN, right=LON_MAX)
     
-    im = plt.imread("/Users/Eamon/Desktop/MSC/SRI-2019-AIS-Anomaly-Detection/New York.png") #plot map of port as background
+    im = plt.imread(utils.current_region+".png")
+    #im = plt.imread("/Users/Eamon/Desktop/MSC/SRI-2019-AIS-Anomaly-Detection/New York.png") #plot map of port as background
     plt.imshow(im, extent=[LON_MIN, LON_MAX, LAT_MIN, LAT_MAX])
     
     for x in paths:
@@ -200,37 +204,44 @@ def plot_over_map(paths):
 ### MAIN
 #   Include command line arguments for training on different files
 parser = ArgumentParser()
+parser.add_argument('action', type=str, default="Test", help="Train or Test for given vessel type")
 parser.add_argument('type', type=str, help="Vessel type to be used for training/testing\nFiles must be named \'trimmed_[VESSEL TYPE].csv\'")
-
 #   Add file location to make inputting filenames simpler
 #   IF YOU ARE USING COMMAND LINE ARGS, CHANGE THIS
 dataset_path = "/Users/samyakovlev/Desktop/SRI-2019-AIS-Anomaly-Detection/"
 args = parser.parse_args()
-
-#   Import data
-#data = pd.read_csv("/Volumes/PATRIOT/AIS Project/Marine Cadastre Datasets/CSVs/trimmed_tanker.csv", header=0, index_col=0) 
-data = pd.read_csv(dataset_path + "trimmed_" + args.type + ".csv", header=0, index_col=0)
 
 trainX = []
 trainY = []
 testX = []
 testY = []
 
-trainX,trainY,testX,testY = split_data(data)   #collect data
+### Import data
+#   Done if the network is told to Train
+if args.action.lower() == "train":
+    data = pd.read_csv(dataset_path + "trimmed_" + args.type + ".csv", header=0, index_col=0)
+    trainX,trainY,testX,testY = split_data(data)   #collect data
 
-##build model
-model = Sequential()
-model.add(LSTM(units=100, return_sequences= True, input_shape=(None,5)))
-#model.add(LSTM(units=30, return_sequences=True))
-model.add(LSTM(units=100))
-model.add(Dense(units=5 ))
-model.compile(optimizer='adam', loss='mean_squared_error', metrics = ['accuracy'])
+    ##build model
+    model = Sequential()
+    model.add(LSTM(units=100, return_sequences= True, input_shape=(None,5)))
+    #model.add(LSTM(units=30, return_sequences=True))
+    model.add(LSTM(units=100))
+    model.add(Dense(units=5 ))
+    model.compile(optimizer='adam', loss='mean_squared_error', metrics = ['accuracy'])
 
+    trained_model = train(model,trainX,trainY)   #train model
 
-trained_model = train(model,trainX,trainY)   #train model
+    model.save("/Users/samyakovlev/Desktop/"+args.type+"_model.h5")   #save model per vessel type
 
-model.save("/Users/samyakovlev/Desktop/"+args.type+"_model.h5")   #save model per vessel type
+elif args.action.lower() == "test":
+    model = load_model("/Users/samyakovlev/Desktop/"+args.type+"_model.h5")
+    model.summary()                                 # Quick output to show the model was loaded
 
-all_predictions = predict(model,testX,testY)#make predictions
+    data = pd.read_csv(dataset_path + "trimmed_" + args.type + ".csv", header=0, index_col=0)
+    trainX,trainY,testX,testY = split_data(data)    # collect data
+    all_predictions = predict(model,testX,testY)    # make predictions
+    plot_predictions(all_predictions, testY)        # plot predictions
 
-plot_predictions(all_predictions, testY)  #plot predictions
+else:
+    print("Please specify whether to TRAIN or TEST on the given vessel type")
