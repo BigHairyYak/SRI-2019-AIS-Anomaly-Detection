@@ -152,19 +152,19 @@ def plot_predictions_help(prediction, actual):
             predicted_norm_LON.append(pred_lon)
             predicted_norm_LAT.append(pred_lat)
         
-    plt.figure()   
-    plt.scatter(predicted_norm_LON,predicted_norm_LAT, marker = 'x', s = 10, color = 'blue', label = 'Predicted Position')
-    plt.scatter(predicted_anom_LON,predicted_anom_LAT, marker = 'x', s = 10, color = 'red', label = 'Predicted Anomaly')
-    plt.scatter(actual_norm_LON,actual_norm_LAT, marker = 'o', s = 10, color = 'green',label =  "Actual Position")
-    plt.scatter(actual_anom_LON,actual_anom_LAT, marker = 'o', s = 10, color = 'red', label =  "Anomalous Position")
+    fig = plt.figure()   
+    fig.scatter(predicted_norm_LON,predicted_norm_LAT, marker = 'x', s = 10, color = 'blue', label = 'Predicted Position')
+    fig.scatter(predicted_anom_LON,predicted_anom_LAT, marker = 'x', s = 10, color = 'red', label = 'Predicted Anomaly')
+    fig.scatter(actual_norm_LON,actual_norm_LAT, marker = 'o', s = 10, color = 'green',label =  "Actual Position")
+    fig.scatter(actual_anom_LON,actual_anom_LAT, marker = 'o', s = 10, color = 'red', label =  "Anomalous Position")
 
-    plt.xlabel("Longitude")
-    plt.ylabel("Latitude")
-    plt.legend()
+    fig.xlabel("Longitude")
+    fig.ylabel("Latitude")
+    fig.legend()
 
     #print("Saving figure")
 
-    plt.savefig("/Users/samyakovlev/Desktop/RNN_Results/" + args.type + str(i) + ".png", bbox_inches = "tight", dpi = 200)
+    fig.savefig("/Users/samyakovlev/Desktop/RNN_Results/" + args.type + str(i) + ".png", bbox_inches = "tight", dpi = 200)
     #plt.show()
     
     if(anom_count > len(prediction) / 3):
