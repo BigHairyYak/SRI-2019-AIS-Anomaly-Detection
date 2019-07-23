@@ -151,7 +151,8 @@ def plot_predictions_help(prediction, actual):
             actual_norm_LAT.append(actual_lat)
             predicted_norm_LON.append(pred_lon)
             predicted_norm_LAT.append(pred_lat)
-           
+        
+    plt.figure()   
     plt.scatter(predicted_norm_LON,predicted_norm_LAT, marker = 'x', s = 10, color = 'blue', label = 'Predicted Position')
     plt.scatter(predicted_anom_LON,predicted_anom_LAT, marker = 'x', s = 10, color = 'red', label = 'Predicted Anomaly')
     plt.scatter(actual_norm_LON,actual_norm_LAT, marker = 'o', s = 10, color = 'green',label =  "Actual Position")
