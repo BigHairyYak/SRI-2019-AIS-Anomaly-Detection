@@ -22,7 +22,7 @@ LON_MAX = -73.5
 ### Collects data from given csv and assigns training and test data
 def split_data(data):
     
-    mmsi_groups = data.groupby(data.index)     #groups data into individual tracks
+    mmsi_groups = data.groupby("MMSI")     #groups data into individual tracks
     
     vTypes=[0, 0, 0, 0, 0, 0, 0]
 
@@ -35,27 +35,12 @@ def split_data(data):
         print("Vessel #" +  str(count))
         count+=1
         
-        path = data[data.index == MMSI].sort_values(by="BaseDateTime").reset_index(drop=True) 
+        path = data[data.MMSI == MMSI].sort_values(by="BaseDateTime").reset_index(drop=True) 
         #utils.cut_discontinuous_tracks([path], 2) need to rework either this or utils to allow for singular paths
     
         input_feature = path.iloc[:,[1,2,3,4,5]].values     #input variables (LAT,LON,SOG,COG,Heading)
         input_data = input_feature
         
-        vType = utils.resolve_vessel_type(path.iloc[0, 6]) # get vesseltype
-        if vType == "Fishing":
-            vTypes[0] += 1
-        elif vType == "Cargo":
-            vTypes[1] += 1
-        elif vType == "Tanker":
-            vTypes[2] += 1
-        elif vType == "Pleasurecraft":
-            vTypes[3] += 1
-        elif vType == "High-speed":
-            vTypes[4] += 1
-        elif vType == "Passenger":
-            vTypes[5] += 1
-        else:
-            vTypes[6] += 1
         ### plot path
         #plt.plot(input_feature[:,1], input_feature[:,0])
         #plt.xlabel("Longitude")
@@ -81,10 +66,25 @@ def split_data(data):
         print(X.shape)
         print(Y.shape)
     
-        if(count < int(len(data)/2)):    #choose number of training vessels
+        if(count < 2 * int(len(mmsi_groups.groups)/3)):    #choose number of training vessels
             trainX.append(X)
             trainY.append(Y)
-        elif(count < len(data)):  #choose number of test vessels
+             vType = utils.resolve_vessel_type(path.iloc[0, 6]) # get vesseltype
+            if vType == "Fishing":
+                vTypes[0] += 1
+            elif vType == "Cargo":
+                vTypes[1] += 1
+            elif vType == "Tanker":
+                vTypes[2] += 1
+            elif vType == "Pleasurecraft":
+                vTypes[3] += 1
+            elif vType == "High-speed":
+                vTypes[4] += 1
+            elif vType == "Passenger":
+                vTypes[5] += 1
+            else:
+                vTypes[6] += 1
+        elif(count < len(mmsi_groups.groups)):  #choose number of test vessels
             testX.append(X)
             testY.append(Y)
         else:
